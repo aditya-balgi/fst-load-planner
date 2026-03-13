@@ -211,6 +211,83 @@ body{background:var(--navy);color:var(--text);font-family:var(--sans);font-size:
 /* empty state */
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:.3}
+
+/* ─── AI COPILOT BAR ─── */
+.ai-copilot-bar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}
+
+/* ─── MOBILE ─── */
+@media (max-width:768px){
+  body{font-size:14px}
+
+  /* Header */
+  .header{padding:8px 12px;height:auto;min-height:52px;flex-wrap:wrap;gap:8px}
+  .header-nav{order:3;width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .nav-arrow{display:none}
+  .nav-step{padding:7px 10px;font-size:11px;white-space:nowrap;flex-shrink:0}
+  .logo-sub{display:none}
+  .hdr-date{display:none}
+
+  /* Panels */
+  .panel{padding:12px}
+  .panel-header{flex-wrap:wrap;gap:10px;padding-bottom:12px;margin-bottom:14px}
+  .panel-actions{margin-left:0;width:100%;flex-wrap:wrap;gap:6px}
+  .panel-actions .btn{flex:1;justify-content:center;min-width:120px}
+
+  /* Collapse all multi-column grids */
+  .g2,.g3,.g4,.g6{grid-template-columns:1fr !important}
+  /* Reset any inline grid-column:span N so items don't overflow a 1-col grid */
+  .form-grid > *{grid-column:1 !important}
+
+  /* Inputs & buttons — 44px min touch target */
+  .field input,.field select{height:42px;font-size:14px;padding:0 12px}
+  .btn{padding:10px 16px;font-size:13px;min-height:40px;touch-action:manipulation}
+  .btn-accent{min-height:44px}
+
+  /* Queue summary — 2-up grid */
+  .queue-summary{grid-template-columns:repeat(2,1fr)}
+  .stat-val{font-size:18px}
+
+  /* Queue table — horizontal scroll */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .data-table{min-width:680px}
+
+  /* Queue controls */
+  .queue-controls{flex-wrap:wrap}
+
+  /* Load Builder — stack panels */
+  .builder-layout{grid-template-columns:1fr}
+  .order-list-panel{position:static}
+  .order-list-body{max-height:260px}
+
+  /* AI trigger */
+  .progress-bar-outer{width:100%;max-width:100%}
+  .ai-stats{flex-wrap:wrap;justify-content:center;gap:20px}
+
+  /* VS comparison banner — stack */
+  .vs-banner{grid-template-columns:1fr}
+  .vs-side.before{border-right:none;border-bottom:1px solid var(--border)}
+  .vs-divider{padding:8px 16px}
+
+  /* Trip card fill meters — stack */
+  .fill-meters{grid-template-columns:1fr}
+
+  /* Trip footer — wrap buttons */
+  .trip-footer{flex-wrap:wrap;gap:6px}
+  .trip-footer .btn{flex:1;min-width:100px;justify-content:center}
+  .trip-saving{width:100%;margin-left:0;justify-content:flex-end}
+
+  /* AI copilot bar */
+  .ai-copilot-bar{gap:8px}
+  .ai-copilot-bar .btn{margin-left:0 !important;width:100%}
+}
+
+@media (max-width:480px){
+  .queue-summary{grid-template-columns:1fr}
+  .hdr-badge{display:none}
+  .header-right{display:none}
+  .panel{padding:10px}
+  .panel-title{font-size:17px}
+}
 </style>
 </head>
 <body>
@@ -253,7 +330,7 @@ body{background:var(--navy);color:var(--text);font-family:var(--sans);font-size:
   </div>
 
   <!-- AI Co-pilot bar -->
-  <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 14px;margin-bottom:16px">
+  <div class="ai-copilot-bar">
     <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 1.5s infinite"></div>
     <span style="font-size:11px;font-weight:500;color:var(--accent)">AI Co-Pilot</span>
     <span style="font-size:11px;color:var(--text-muted)">Completeness score:</span>
