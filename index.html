@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FST Logistics — AI Load Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0a1628;
+  --navy-mid: #132240;
+  --navy-light: #1e3358;
+  --accent: #00c4a0;
+  --accent-dim: rgba(0,196,160,0.15);
+  --accent-border: rgba(0,196,160,0.4);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.15);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --text: #e2e8f0;
+  --text-muted: #7a8fa6;
+  --text-dim: #4a6080;
+  --border: rgba(255,255,255,0.08);
+  --border-light: rgba(255,255,255,0.04);
+  --surface: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.07);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;overflow-x:hidden}
+
+/* ─── HEADER ─── */
+.header{background:var(--navy-mid);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:20px;height:52px;position:sticky;top:0;z-index:100}
+.logo-mark{width:28px;height:28px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-mark svg{width:16px;height:16px;fill:var(--navy)}
+.logo-text{font-size:14px;font-weight:600;letter-spacing:.03em;color:#fff}
+.logo-sub{font-size:10px;color:var(--text-muted);margin-left:2px;font-family:var(--mono)}
+.header-nav{display:flex;gap:2px;margin-left:8px;flex:1}
+.nav-step{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:5px;cursor:pointer;transition:all .15s;border:1px solid transparent;font-size:12px;font-weight:500;color:var(--text-muted)}
+.nav-step:hover{background:var(--surface);color:var(--text)}
+.nav-step.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent)}
+.nav-step .step-num{font-family:var(--mono);font-size:10px;font-weight:500;background:rgba(255,255,255,0.08);border-radius:3px;padding:1px 5px;min-width:20px;text-align:center}
+.nav-step.active .step-num{background:var(--accent);color:var(--navy)}
+.nav-arrow{color:var(--text-dim);font-size:12px;margin:0 -4px}
+.header-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.hdr-badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent)}
+.hdr-date{font-size:11px;color:var(--text-muted)}
+
+/* ─── PANELS ─── */
+.panel{display:none;padding:20px 24px;max-width:1400px;margin:0 auto}
+.panel.active{display:block}
+
+/* ─── SECTION LABELS ─── */
+.panel-header{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:20px;font-weight:600;color:#fff}
+.panel-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:2px}
+.panel-meta{font-family:var(--mono);font-size:10px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:3px}
+.panel-actions{margin-left:auto;display:flex;gap:8px}
+
+/* ─── FORM LAYOUT ─── */
+.form-grid{display:grid;gap:12px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g6{grid-template-columns:repeat(6,1fr)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.card-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim)}
+.card-body{padding:14px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.field input,.field select{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:var(--text);font-family:var(--sans);font-size:12px;height:30px;padding:0 10px;transition:border .15s;width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);background:rgba(0,196,160,0.04)}
+.field input.ok{border-color:rgba(16,185,129,0.4)}
+.field input.warn{border-color:rgba(245,158,11,0.5)}
+.party-head{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid var(--border-light)}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:5px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:500;transition:all .15s;border:1px solid var(--border);background:var(--surface);color:var(--text)}
+.btn:hover{background:var(--surface-hover);border-color:rgba(255,255,255,0.15)}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:var(--navy);font-weight:600}
+.btn-accent:hover{background:#00e0b8;border-color:#00e0b8}
+.btn-accent:disabled{background:#1a4a40;border-color:#1a4a40;color:#2d8070;cursor:not-allowed}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-muted)}
+.btn-ghost:hover{background:var(--surface);color:var(--text);border-color:var(--border)}
+
+/* ─── QUEUE TABLE ─── */
+.queue-controls{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+.lane-filter{display:flex;gap:4px;flex-wrap:wrap}
+.lane-pill{padding:3px 10px;border-radius:100px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .15s}
+.lane-pill:hover{border-color:rgba(255,255,255,0.2);color:var(--text)}
+.lane-pill.active{border-color:var(--accent-border);background:var(--accent-dim);color:var(--accent)}
+.tbl-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{background:rgba(255,255,255,0.03);padding:9px 12px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--border-light);font-size:12px;vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--surface-hover)}
+.data-table td.mono{font-family:var(--mono);font-size:11px}
+.badge{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 7px;border-radius:3px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.badge-lane{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)}
+.badge-green{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25)}
+.badge-amber{background:var(--amber-dim);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)}
+.badge-red{background:var(--red-dim);color:#f87171;border:1px solid rgba(239,68,68,0.25)}
+.badge-gray{background:rgba(255,255,255,0.06);color:var(--text-muted);border:1px solid var(--border)}
+.badge-acc{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border)}
+.crad-urgent{color:#f87171;font-weight:600}
+.crad-ok{color:#34d399}
+.crad-warn{color:#fbbf24}
+.wt-bar-wrap{width:70px;background:rgba(255,255,255,0.07);border-radius:2px;height:5px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:4px}
+.wt-bar{height:100%;border-radius:2px;background:var(--accent)}
+.queue-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:12px 14px}
+.stat-val{font-size:22px;font-weight:600;color:#fff;font-family:var(--mono)}
+.stat-label{font-size:10px;color:var(--text-muted);margin-top:2px}
+.stat-sub{font-size:10px;color:var(--text-dim);margin-top:4px}
+
+/* ─── LOAD BUILDER ─── */
+.builder-layout{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+.order-list-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;position:sticky;top:72px}
+.order-list-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.order-list-body{max-height:calc(100vh - 200px);overflow-y:auto}
+.order-item{padding:10px 14px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .1s}
+.order-item:last-child{border-bottom:none}
+.order-item:hover{background:var(--surface-hover)}
+.order-item.assigned{opacity:.45}
+.order-fb{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}
+.order-cust{font-size:12px;font-weight:500;color:var(--text);margin:1px 0}
+.order-meta{font-size:10px;color:var(--text-muted);display:flex;gap:10px;margin-top:2px}
+.right-panel{}
+.ai-trigger-zone{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px 24px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden}
+.ai-trigger-zone.running{border-color:var(--accent-border)}
+.ai-trigger-glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(0,196,160,0.06) 0%, transparent 70%);opacity:0;transition:opacity .5s;pointer-events:none}
+.ai-trigger-zone.running .ai-trigger-glow{opacity:1}
+.ai-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:4px}
+.ai-subtitle{font-size:11px;color:var(--text-muted);margin-bottom:18px}
+.ai-stats{display:flex;justify-content:center;gap:24px;margin-bottom:20px}
+.ai-stat{text-align:center}
+.ai-stat-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent)}
+.ai-stat-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.progress-bar-outer{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;width:300px;margin:14px auto 0}
+.progress-bar-inner{height:100%;background:var(--accent);border-radius:2px;width:0;transition:width .1s}
+.ai-status-text{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;min-height:16px}
+.trip-cards{display:flex;flex-direction:column;gap:12px}
+.trip-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .2s;opacity:0;transform:translateY(8px);transition:opacity .4s ease,transform .4s ease,border-color .2s}
+.trip-card.visible{opacity:1;transform:translateY(0)}
+.trip-card:hover{border-color:rgba(255,255,255,0.15)}
+.trip-header{display:flex;align-items:center;gap:12px;padding:11px 14px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)}
+.trip-id{font-family:var(--mono);font-size:12px;font-weight:500;color:#fff}
+.trip-lane{font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em}
+.trip-header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.lf-badge{font-family:var(--mono);font-size:14px;font-weight:600}
+.lf-good{color:#34d399}
+.lf-warn{color:#fbbf24}
+.lf-low{color:#f87171}
+.trip-body{padding:12px 14px}
+.fill-meters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.meter-row{display:flex;flex-direction:column;gap:4px}
+.meter-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);display:flex;justify-content:space-between}
+.meter-label span:last-child{font-family:var(--mono);font-size:10px;color:var(--text-muted)}
+.meter-track{height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden}
+.meter-fill{height:100%;border-radius:3px;transition:width 1s ease .3s,background .5s}
+.trip-orders-mini{display:flex;flex-direction:column;gap:4px}
+.order-mini-row{display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 8px;border-radius:4px;background:rgba(255,255,255,0.03)}
+.order-mini-fb{font-family:var(--mono);font-size:10px;color:var(--accent);min-width:70px}
+.order-mini-cust{color:var(--text);flex:1}
+.order-mini-wt{font-family:var(--mono);font-size:10px;color:var(--text-muted);text-align:right;min-width:60px}
+.crad-chip{font-size:9px;padding:1px 6px;border-radius:2px;font-weight:600;font-family:var(--mono)}
+.crad-ok-chip{background:rgba(16,185,129,0.15);color:#34d399}
+.crad-warn-chip{background:var(--amber-dim);color:#fbbf24}
+.crad-over-chip{background:var(--red-dim);color:#f87171}
+.trip-footer{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:rgba(255,255,255,0.015)}
+.trip-saving{font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:5px;margin-left:auto}
+.saving-val{font-family:var(--mono);color:var(--accent);font-weight:600}
+
+/* ─── SUBMIT ANIMATION ─── */
+.submit-flash{position:fixed;inset:0;background:rgba(0,196,160,0.05);opacity:0;pointer-events:none;transition:opacity .3s;z-index:200}
+.submit-flash.show{opacity:1}
+.toast{position:fixed;top:70px;right:24px;background:var(--navy-mid);border:1px solid var(--accent-border);border-radius:7px;padding:12px 16px;font-size:12px;color:var(--text);display:flex;align-items:center;gap:10px;opacity:0;transform:translateX(20px);transition:all .3s;z-index:300;max-width:320px}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast-icon{font-size:16px}
+.toast strong{color:var(--accent)}
+
+/* ─── NEW ORDER BADGE ─── */
+.new-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:2px 6px;border-radius:3px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border);margin-left:8px}
+.new-tag .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+
+/* ─── COMPARISON BANNER ─── */
+.vs-banner{display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.vs-side{padding:14px 16px}
+.vs-side.before{background:rgba(239,68,68,0.05);border-right:1px solid var(--border)}
+.vs-side.after{background:rgba(0,196,160,0.05)}
+.vs-divider{display:flex;align-items:center;justify-content:center;padding:0 16px;background:var(--surface);font-size:11px;font-weight:600;color:var(--text-dim)}
+.vs-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.vs-side.before .vs-label{color:#f87171}
+.vs-side.after .vs-label{color:var(--accent)}
+.vs-stat-row{display:flex;gap:16px;flex-wrap:wrap}
+.vs-stat{display:flex;flex-direction:column}
+.vs-stat-num{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text)}
+.vs-stat-lbl{font-size:10px;color:var(--text-muted)}
+
+/* empty state */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.3}
+</style>
+</head>
+<body>
+
+<div class="submit-flash" id="submit-flash"></div>
+<div class="toast" id="toast"><span class="toast-icon">✓</span><div><strong id="toast-fb"></strong> <span id="toast-msg"></span></div></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M3 4h14v2H3zM3 9h10v2H3zM3 14h14v2H3z"/></svg></div>
+  <div><div class="logo-text">FST Logistics</div></div>
+  <span style="color:var(--text-dim);font-size:12px">|</span>
+  <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono)">AI Load Planner</div>
+  <div class="header-nav">
+    <span class="nav-arrow" style="opacity:0">›</span>
+    <div class="nav-step active" id="nav-1" onclick="gotoPanel(1)"><span class="step-num">1</span> Order Entry</div>
+    <span class="nav-arrow">›</span>
+    <div class="nav-step" id="nav-2" onclick="gotoPanel(2)"><span class="step-num">2</span> LP Queue</div>
+    <span class="nav-arrow">›</span>
+    <div class="nav-step" id="nav-3" onclick="gotoPanel(3)"><span class="step-num">3</span> Load Builder</div>
+  </div>
+  <div class="header-right">
+    <div class="hdr-badge">GROVE CITY · DEMO</div>
+    <div class="hdr-date">Thu Mar 12 2026</div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════ PANEL 1: ORDER ENTRY -->
+<div class="panel active" id="panel-1">
+  <div class="panel-header">
+    <div>
+      <div class="panel-subtitle">Customer Service</div>
+      <div class="panel-title">New Order Entry</div>
+    </div>
+    <div class="panel-meta">FB# AUTO-ASSIGN</div>
+    <div class="panel-actions">
+      <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+      <button class="btn btn-accent" onclick="submitOrder()">Submit to LP Queue →</button>
+    </div>
+  </div>
+
+  <!-- AI Co-pilot bar -->
+  <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 14px;margin-bottom:16px">
+    <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 1.5s infinite"></div>
+    <span style="font-size:11px;font-weight:500;color:var(--accent)">AI Co-Pilot</span>
+    <span style="font-size:11px;color:var(--text-muted)">Completeness score:</span>
+    <span id="entry-score" style="font-family:var(--mono);font-size:13px;font-weight:600;color:#fbbf24">72%</span>
+    <div style="flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;max-width:200px;overflow:hidden">
+      <div id="entry-meter" style="height:100%;width:72%;background:#fbbf24;border-radius:2px;transition:width .4s,background .4s"></div>
+    </div>
+    <span id="entry-pilot-msg" style="font-size:11px;color:var(--text-muted)">Consignee phone missing · Appointments not confirmed</span>
+    <button class="btn" style="padding:4px 10px;font-size:10px;margin-left:auto" onclick="autoFill()">✦ Auto-fill demo data</button>
+  </div>
+
+  <div class="form-grid g3" style="margin-bottom:12px">
+    <!-- CALLER / BILL TO -->
+    <div class="card">
+      <div class="card-header"><span class="card-label">Caller / Bill To</span></div>
+      <div class="card-body">
+        <div class="form-grid g2" style="gap:8px">
+          <div class="field"><label>Caller Code</label><input class="ok" id="f-caller-code" value="PURECOBOUA"></div>
+          <div class="field"><label>Operations Code</label><input class="ok" id="f-ops-code" value="PCMB"></div>
+          <div class="field" style="grid-column:span 2"><label>Company Name</label><input class="ok" id="f-caller-name" value="PURELY ELIZABETH"></div>
+          <div class="field" style="grid-column:span 2"><label>Bill To Code</label><input class="ok" id="f-billto" value="PURECOBOUA"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHIPPER -->
+    <div class="card">
+      <div class="card-header"><span class="card-label">Shipper</span></div>
+      <div class="card-body">
+        <div class="form-grid g2" style="gap:8px">
+          <div class="field" style="grid-column:span 2"><label>Shipper Code</label><input class="ok" id="f-shipper-code" value="PUREOHGROB"></div>
+          <div class="field" style="grid-column:span 2"><label>Address</label><input class="ok" id="f-ship-addr" value="3280 SOUTHPARK PLACE, GROVE CITY OH 43123"></div>
+          <div class="field"><label>Phone</label><input id="f-ship-phone" value="614-529-7900"></div>
+          <div class="field"><label>Start Zone</label><input class="ok" id="f-start-zone" value="43228"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSIGNEE -->
+    <div class="card">
+      <div class="card-header"><span class="card-label">Consignee</span><span id="cons-ai-flag" style="font-size:10px;color:#fbbf24">⚠ Phone missing</span></div>
+      <div class="card-body">
+        <div class="form-grid g2" style="gap:8px">
+          <div class="field" style="grid-column:span 2"><label>Consignee Code</label><input class="ok" id="f-cons-code" value="WALMDESMYA"></div>
+          <div class="field" style="grid-column:span 2"><label>Name</label><input class="ok" id="f-cons-name" value="WALMART DC #7034"></div>
+          <div class="field" style="grid-column:span 2"><label>Address</label><input class="ok" id="f-cons-addr" value="4880 WHEATLEYS POND RD, SMYRNA DE 19977"></div>
+          <div class="field"><label>Phone</label><input class="warn" id="f-cons-phone" placeholder="Required" oninput="checkConsPhone()"></div>
+          <div class="field"><label>End Zone</label><input class="ok" id="f-end-zone" value="19977"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-grid g2" style="margin-bottom:12px">
+    <!-- SCHEDULE -->
+    <div class="card">
+      <div class="card-header"><span class="card-label">Schedule</span>
+        <select style="background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:2px 6px">
+          <option>STANDARD</option><option>EXPEDITED</option><option>SPOT QUOTED</option>
+        </select>
+      </div>
+      <div class="card-body">
+        <div class="form-grid g4" style="gap:8px">
+          <div class="field"><label>Pickup Date</label><input type="date" class="ok" id="f-pu-date" value="2026-03-13"></div>
+          <div class="field"><label>Ready Time</label><input class="ok" value="8:00a"></div>
+          <div class="field"><label>Delivery Date</label><input type="date" class="ok" id="f-del-date" value="2026-03-17"></div>
+          <div class="field"><label>CRAD</label><input class="ok" id="f-crad" value="03/17/2026"></div>
+          <div class="field"><label>Appt From</label><input type="datetime-local" value="2026-03-13T08:00"></div>
+          <div class="field"><label>Appt To</label><input type="datetime-local" value="2026-03-13T08:00"></div>
+          <div class="field"><label>Del Appt From</label><input type="datetime-local" value="2026-03-17T12:00"></div>
+          <div class="field"><label>Del Appt To</label><input type="datetime-local" value="2026-03-17T12:00"></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:10px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="appt-req-del" checked onchange="checkAppt()"> Del Appt Req</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="appt-made" onchange="checkAppt()"> Made</label>
+          <span id="appt-ai-flag" style="font-size:10px;color:#fbbf24;margin-left:4px">⚠ Not yet confirmed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOAD DETAILS -->
+    <div class="card">
+      <div class="card-header"><span class="card-label">Load Details</span><span style="font-size:10px;color:var(--text-muted)">Mileage: <span style="font-family:var(--mono);color:var(--text)">476 mi</span></span></div>
+      <div class="card-body">
+        <div class="form-grid g4" style="gap:8px;margin-bottom:10px">
+          <div class="field"><label>Comm Code</label><input class="ok" value="FAKD60"></div>
+          <div class="field" style="grid-column:span 2"><label>Description</label><input class="ok" value="DRY FAK CLASS 60"></div>
+          <div class="field"><label>Lane</label>
+            <select id="f-lane" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:var(--text);font-size:12px;height:30px;padding:0 8px;width:100%">
+              <option value="MID-ATL">MID-ATL / DE</option>
+              <option value="PA/NJ">PA / NJ</option>
+              <option value="OHIO">OHIO</option>
+              <option value="SOUTHEAST">SOUTHEAST</option>
+              <option value="CALIFORNIA">CALIFORNIA</option>
+            </select>
+          </div>
+          <div class="field"><label>Pieces</label><input class="ok" id="f-pieces" value="1000" type="number"></div>
+          <div class="field"><label>Weight (lbs)</label><input class="ok" id="f-weight" value="3046" type="number" oninput="calcRow()"></div>
+          <div class="field"><label>Pallets</label><input class="ok" id="f-pallets" value="8" type="number"></div>
+          <div class="field"><label>Cube (spaces)</label><input class="ok" id="f-cube" value="4" type="number"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer"><input type="checkbox"> Temp Ctrl</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="f-hazmat"> Hazmat</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="f-reefer"> Reefer Req</label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+          <div class="field" style="flex:1"><label>Rate / CWT</label><input class="ok" id="f-rate" value="39.61" type="number" oninput="calcRow()"></div>
+          <div class="field" style="flex:1"><label>Subtotal</label><input id="f-subtotal" readonly value="$1,206.52" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:5px;color:var(--accent);font-family:var(--mono);height:30px;padding:0 10px;width:100%"></div>
+          <div class="field" style="flex:1"><label>Fuel Surcharge</label><input readonly value="$81.08 (auto)" style="background:rgba(255,255,255,0.03);border:1px solid var(--accent-border);border-radius:5px;color:var(--accent);font-family:var(--mono);font-size:11px;height:30px;padding:0 8px;width:100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFERENCES -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><span class="card-label">Reference Numbers</span></div>
+    <div class="card-body">
+      <div class="form-grid g6" style="gap:8px">
+        <div class="field"><label>Order # (Type 2)</label><input class="ok" value="73103"></div>
+        <div class="field"><label>Purchase Order</label><input class="ok" value="38019102"></div>
+        <div class="field"><label>Delivery Confirm</label><input class="ok" value="3333756312"></div>
+        <div class="field"><label>Quote ID</label><input class="ok" value="Q-23572147"></div>
+        <div class="field"><label>Whse Bill #</label><input class="ok" value="4638305"></div>
+        <div class="field"><label>Whse Location</label><input class="ok" value="GC02SL0002"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;gap:8px">
+    <button class="btn btn-ghost">Save Draft</button>
+    <button class="btn btn-accent" onclick="submitOrder()">Submit to LP Queue →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PANEL 2: LP QUEUE -->
+<div class="panel" id="panel-2">
+  <div class="panel-header">
+    <div>
+      <div class="panel-subtitle">Load Planning</div>
+      <div class="panel-title">LP Order Queue</div>
+    </div>
+    <div class="panel-meta" id="queue-time">As of 08:14 · Thu Mar 12</div>
+    <div class="panel-actions">
+      <button class="btn" onclick="gotoPanel(1)">+ New Order</button>
+      <button class="btn btn-accent" onclick="gotoPanel(3)">Build Loads with AI →</button>
+    </div>
+  </div>
+
+  <div class="queue-summary">
+    <div class="stat-card"><div class="stat-val" id="sq-total">14</div><div class="stat-label">Orders awaiting planning</div><div class="stat-sub">3 added in last hour</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#f87171" id="sq-urgent">3</div><div class="stat-label">CRAD ≤ 2 days</div><div class="stat-sub">Walmart DE, Publix FL, Kroger OH</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#fbbf24">127k</div><div class="stat-label">Total lbs unplanned</div><div class="stat-sub">~3.2 trailers estimated</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--accent)">3</div><div class="stat-label">Planners on shift</div><div class="stat-sub">Est. 45–75 min manual build time</div></div>
+  </div>
+
+  <div class="queue-controls">
+    <div class="lane-filter">
+      <div class="lane-pill active" onclick="filterLane(this,'ALL')">All Lanes</div>
+      <div class="lane-pill" onclick="filterLane(this,'OHIO')">Ohio</div>
+      <div class="lane-pill" onclick="filterLane(this,'PA/NJ')">PA / NJ</div>
+      <div class="lane-pill" onclick="filterLane(this,'SOUTHEAST')">Southeast</div>
+      <div class="lane-pill" onclick="filterLane(this,'CALIFORNIA')">California</div>
+      <div class="lane-pill" onclick="filterLane(this,'MID-ATL')">Mid-Atlantic</div>
+    </div>
+    <span style="font-size:11px;color:var(--text-dim);margin-left:auto">Sort: CRAD ↑</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="data-table" id="queue-table">
+      <thead>
+        <tr>
+          <th>FB #</th>
+          <th>Customer / Consignee</th>
+          <th>Lane</th>
+          <th>Wt (lbs)</th>
+          <th>Cube</th>
+          <th>Pieces</th>
+          <th>CRAD</th>
+          <th>Days Out</th>
+          <th>Source</th>
+          <th>Flags</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="queue-body"></tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-top:16px">
+    <button class="btn btn-accent" onclick="gotoPanel(3)">Proceed to Load Builder →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PANEL 3: LOAD BUILDER -->
+<div class="panel" id="panel-3">
+  <div class="panel-header">
+    <div>
+      <div class="panel-subtitle">AI Load Optimizer</div>
+      <div class="panel-title">Load Builder</div>
+    </div>
+    <div class="panel-meta">14 orders · 3 lanes</div>
+    <div class="panel-actions">
+      <button class="btn btn-ghost" onclick="gotoPanel(2)">← Back to Queue</button>
+    </div>
+  </div>
+
+  <!-- before / after comparison -->
+  <div class="vs-banner" id="vs-banner" style="display:none">
+    <div class="vs-side before">
+      <div class="vs-label">Manual Process — Today</div>
+      <div class="vs-stat-row">
+        <div class="vs-stat"><div class="vs-stat-num" style="color:#f87171">45–75 min</div><div class="vs-stat-lbl">Build time (3 planners)</div></div>
+        <div class="vs-stat"><div class="vs-stat-num" style="color:#f87171">~78%</div><div class="vs-stat-lbl">Avg load factor</div></div>
+        <div class="vs-stat"><div class="vs-stat-num" style="color:#f87171">Paper + Maps</div><div class="vs-stat-lbl">Planning tools</div></div>
+      </div>
+    </div>
+    <div class="vs-divider">VS</div>
+    <div class="vs-side after">
+      <div class="vs-label">AI Optimizer — This Run</div>
+      <div class="vs-stat-row">
+        <div class="vs-stat"><div class="vs-stat-num" style="color:var(--accent)" id="vsa-time">—</div><div class="vs-stat-lbl">AI build time</div></div>
+        <div class="vs-stat"><div class="vs-stat-num" style="color:var(--accent)" id="vsa-lf">—</div><div class="vs-stat-lbl">Avg load factor</div></div>
+        <div class="vs-stat"><div class="vs-stat-num" style="color:var(--accent)" id="vsa-crad">—</div><div class="vs-stat-lbl">CRAD compliance</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="builder-layout">
+    <!-- LEFT: order list -->
+    <div class="order-list-panel">
+      <div class="order-list-header">
+        <span class="card-label">Unplanned Orders</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent)" id="unplanned-count">14 orders</span>
+      </div>
+      <div class="order-list-body" id="order-list-body"></div>
+    </div>
+
+    <!-- RIGHT: AI trigger + trip cards -->
+    <div class="right-panel">
+      <div class="ai-trigger-zone" id="ai-trigger-zone">
+        <div class="ai-trigger-glow"></div>
+        <div class="ai-title">AI Load Optimizer</div>
+        <div class="ai-subtitle">Groups orders by lane · respects weight & cube caps · sorts by CRAD priority</div>
+        <div class="ai-stats">
+          <div class="ai-stat"><div class="ai-stat-val" id="ai-s-orders">14</div><div class="ai-stat-label">Orders</div></div>
+          <div class="ai-stat"><div class="ai-stat-val" id="ai-s-weight">127k lbs</div><div class="ai-stat-label">Total Weight</div></div>
+          <div class="ai-stat"><div class="ai-stat-val">43,500</div><div class="ai-stat-label">Reefer Cap (lbs)</div></div>
+          <div class="ai-stat"><div class="ai-stat-val">26</div><div class="ai-stat-label">Max Spaces</div></div>
+        </div>
+        <button class="btn btn-accent" id="ai-btn" onclick="runAI()" style="padding:10px 28px;font-size:13px">✦ Generate Optimized Load Plans</button>
+        <div class="progress-bar-outer" id="ai-progress-outer" style="display:none"><div class="progress-bar-inner" id="ai-progress"></div></div>
+        <div class="ai-status-text" id="ai-status-text"></div>
+      </div>
+
+      <div class="trip-cards" id="trip-cards"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────
+var today = new Date('2026-03-12');
+function daysTo(dateStr){
+  var d = new Date(dateStr);
+  return Math.round((d - today) / 86400000);
+}
+
+var ORDERS = [
+  {fb:'CL883409', customer:'PURELY ELIZABETH', consignee:'WALMART DC #7034', city:'Smyrna', state:'DE', lane:'MID-ATL', weight:3046, cube:4, pieces:1000, crad:'2026-03-17', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60', isNew:false},
+  {fb:'CL883312', customer:'PURELY ELIZABETH', consignee:'WALMART DC #6098', city:'Middletown', state:'PA', lane:'PA/NJ', weight:12400, cube:8, pieces:1200, crad:'2026-03-14', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883298', customer:'PURELY ELIZABETH', consignee:"TRADER JOE'S DIST CTR", city:'Pine Brook', state:'NJ', lane:'PA/NJ', weight:8200, cube:6, pieces:800, crad:'2026-03-15', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 92.5'},
+  {fb:'CL883401', customer:'PURELY ELIZABETH', consignee:'SHOPRITE DC', city:'Keasbey', state:'NJ', lane:'PA/NJ', weight:9100, cube:7, pieces:900, crad:'2026-03-16', source:'MANUAL', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883278', customer:'PURELY ELIZABETH', consignee:'WALMART DC #7014', city:'Porterville', state:'CA', lane:'CALIFORNIA', weight:18500, cube:12, pieces:2000, crad:'2026-03-19', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883301', customer:'PURELY ELIZABETH', consignee:"TRADER JOE'S CA", city:'Commerce', state:'CA', lane:'CALIFORNIA', weight:14200, cube:9, pieces:1500, crad:'2026-03-20', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 92.5'},
+  {fb:'CL883355', customer:'PURELY ELIZABETH', consignee:'WHOLE FOODS FRESNO', city:'Fresno', state:'CA', lane:'CALIFORNIA', weight:11800, cube:8, pieces:1100, crad:'2026-03-21', source:'CSV', hazmat:false, reefer:false, commodity:'DRY FAK 92.5'},
+  {fb:'CL883199', customer:'PURELY ELIZABETH', consignee:'KROGER DC', city:'Blue Ash', state:'OH', lane:'OHIO', weight:16300, cube:11, pieces:1800, crad:'2026-03-13', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883221', customer:'PURELY ELIZABETH', consignee:'MEIJER DC', city:'Tipp City', state:'OH', lane:'OHIO', weight:12900, cube:9, pieces:1400, crad:'2026-03-14', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883244', customer:'PURELY ELIZABETH', consignee:'TARGET DC FINDLAY', city:'Findlay', state:'OH', lane:'OHIO', weight:8700, cube:6, pieces:900, crad:'2026-03-13', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883350', customer:'PURELY ELIZABETH', consignee:'PUBLIX DC', city:'Lakeland', state:'FL', lane:'SOUTHEAST', weight:15400, cube:10, pieces:1700, crad:'2026-03-14', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 70'},
+  {fb:'CL883362', customer:'PURELY ELIZABETH', consignee:'WALMART DC #7087', city:'Smyrna', state:'GA', lane:'SOUTHEAST', weight:11200, cube:8, pieces:1100, crad:'2026-03-15', source:'EDI', hazmat:false, reefer:false, commodity:'DRY FAK 60'},
+  {fb:'CL883379', customer:'PURELY ELIZABETH', consignee:'WHOLE FOODS SE', city:'Atlanta', state:'GA', lane:'SOUTHEAST', weight:9800, cube:7, pieces:1000, crad:'2026-03-16', source:'CSV', hazmat:false, reefer:false, commodity:'DRY FAK 92.5'},
+  {fb:'CL883411', customer:'PURELY ELIZABETH', consignee:"TRADER JOE'S OHIO", city:'Columbus', state:'OH', lane:'OHIO', weight:7200, cube:5, pieces:700, crad:'2026-03-15', source:'MANUAL', hazmat:false, reefer:false, commodity:'DRY FAK 92.5'},
+];
+
+var assignedFbs = {};
+var aiRan = false;
+
+// ─── PANEL NAVIGATION ───────────────────────────────────────────────
+function gotoPanel(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  document.getElementById('nav-' + n).classList.add('active');
+  if (n === 2) renderQueue('ALL');
+  if (n === 3) renderOrderList();
+}
+
+// ─── ORDER ENTRY HELPERS ────────────────────────────────────────────
+function calcRow() {
+  var w = parseFloat(document.getElementById('f-weight').value) || 0;
+  var r = parseFloat(document.getElementById('f-rate').value) || 0;
+  var sub = (w / 100) * r;
+  document.getElementById('f-subtotal').value = '$' + sub.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function checkConsPhone() {
+  var ph = document.getElementById('f-cons-phone').value.trim();
+  var flag = document.getElementById('cons-ai-flag');
+  var inp = document.getElementById('f-cons-phone');
+  if (ph) { flag.textContent = ''; inp.className = 'ok'; checkScore(); }
+  else { flag.textContent = '⚠ Phone missing'; inp.className = 'warn'; checkScore(); }
+}
+function checkAppt() {
+  var req = document.getElementById('appt-req-del').checked;
+  var made = document.getElementById('appt-made').checked;
+  var flag = document.getElementById('appt-ai-flag');
+  flag.textContent = (req && !made) ? '⚠ Not yet confirmed' : '';
+  checkScore();
+}
+function checkScore() {
+  var issues = [];
+  if (!document.getElementById('f-cons-phone').value.trim()) issues.push('phone');
+  if (document.getElementById('appt-req-del').checked && !document.getElementById('appt-made').checked) issues.push('appt');
+  var pct = issues.length === 0 ? 100 : issues.length === 1 ? 86 : 72;
+  var color = pct === 100 ? '#34d399' : pct === 86 ? 'var(--accent)' : '#fbbf24';
+  document.getElementById('entry-score').textContent = pct + '%';
+  document.getElementById('entry-score').style.color = color;
+  document.getElementById('entry-meter').style.width = pct + '%';
+  document.getElementById('entry-meter').style.background = color;
+  var msgs = {phone:'Consignee phone missing', appt:'Appointments not confirmed'};
+  document.getElementById('entry-pilot-msg').textContent = issues.map(i => msgs[i]).join(' · ') || '✓ Order complete — ready to submit';
+  document.getElementById('entry-pilot-msg').style.color = issues.length ? 'var(--text-muted)' : '#34d399';
+}
+function autoFill() {
+  document.getElementById('f-cons-phone').value = '302-653-1000';
+  document.getElementById('appt-made').checked = true;
+  checkConsPhone(); checkAppt();
+}
+function clearForm() {
+  document.getElementById('f-cons-phone').value = '';
+  document.getElementById('appt-made').checked = false;
+  checkConsPhone(); checkAppt();
+}
+
+function submitOrder() {
+  var newFb = 'CL88' + (3413 + ORDERS.length);
+  var lane = document.getElementById('f-lane').value;
+  var crad = document.getElementById('f-crad').value;
+  var cradParsed;
+  try { cradParsed = new Date(crad).toISOString().split('T')[0]; } catch(e) { cradParsed = '2026-03-17'; }
+  var newOrder = {
+    fb: newFb,
+    customer: document.getElementById('f-caller-name').value || 'PURELY ELIZABETH',
+    consignee: document.getElementById('f-cons-name').value || 'WALMART DC #7034',
+    city: 'Smyrna', state: 'DE', lane: lane,
+    weight: parseInt(document.getElementById('f-weight').value) || 3046,
+    cube: parseInt(document.getElementById('f-cube').value) || 4,
+    pieces: parseInt(document.getElementById('f-pieces').value) || 1000,
+    crad: cradParsed,
+    source: 'MANUAL', hazmat: false, reefer: false,
+    commodity: 'DRY FAK 60', isNew: true
+  };
+  ORDERS.unshift(newOrder);
+
+  var flash = document.getElementById('submit-flash');
+  flash.classList.add('show');
+  setTimeout(() => flash.classList.remove('show'), 400);
+
+  var toast = document.getElementById('toast');
+  document.getElementById('toast-fb').textContent = newFb;
+  document.getElementById('toast-msg').textContent = 'submitted to LP Queue (' + lane + ' lane)';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+
+  setTimeout(() => gotoPanel(2), 600);
+}
+
+// ─── QUEUE RENDERING ────────────────────────────────────────────────
+function filterLane(el, lane) {
+  document.querySelectorAll('.lane-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderQueue(lane);
+}
+
+function renderQueue(laneFilter) {
+  var tbody = document.getElementById('queue-body');
+  tbody.innerHTML = '';
+  var filtered = laneFilter === 'ALL' ? ORDERS : ORDERS.filter(o => o.lane === laneFilter);
+  var sorted = filtered.slice().sort((a,b) => new Date(a.crad) - new Date(b.crad));
+  
+  sorted.forEach(function(o) {
+    var days = daysTo(o.crad);
+    var cradClass = days <= 1 ? 'crad-urgent' : days <= 3 ? 'crad-warn' : 'crad-ok';
+    var cradBadge = days <= 1 ? 'badge-red' : days <= 3 ? 'badge-amber' : 'badge-green';
+    var daysLabel = days < 0 ? 'OVERDUE' : days === 0 ? 'TODAY' : days + 'd';
+    var sourceBadge = o.source === 'EDI' ? 'badge-green' : o.source === 'MANUAL' ? 'badge-amber' : 'badge-gray';
+    var laneColor = {OHIO:'badge-acc','PA/NJ':'badge-lane',SOUTHEAST:'badge-amber',CALIFORNIA:'badge-acc','MID-ATL':'badge-gray'}[o.lane] || 'badge-gray';
+    var flags = '';
+    if (o.hazmat) flags += '<span class="badge badge-red" style="margin-right:3px">HZ</span>';
+    if (o.reefer) flags += '<span class="badge badge-lane">RF</span>';
+    if (o.isNew) flags += '<span class="badge badge-acc new-tag"><span class="dot" style="width:5px;height:5px;border-radius:50%;background:var(--accent)"></span>NEW</span>';
+    var status = assignedFbs[o.fb] ? '<span class="badge badge-acc">PLANNED</span>' : '<span class="badge badge-gray">QUEUE</span>';
+    
+    var tr = document.createElement('tr');
+    tr.innerHTML = 
+      '<td class="mono">' + o.fb + '</td>' +
+      '<td><div style="font-size:12px;font-weight:500">' + o.consignee + '</div><div style="font-size:10px;color:var(--text-muted)">' + o.city + ', ' + o.state + '</div></td>' +
+      '<td><span class="badge ' + laneColor + '">' + o.lane + '</span></td>' +
+      '<td class="mono">' + o.weight.toLocaleString() + '</td>' +
+      '<td class="mono">' + o.cube + '</td>' +
+      '<td class="mono">' + o.pieces.toLocaleString() + '</td>' +
+      '<td class="mono ' + cradClass + '">' + o.crad.slice(5).replace('-','/') + '</td>' +
+      '<td><span class="badge ' + cradBadge + '">' + daysLabel + '</span></td>' +
+      '<td><span class="badge ' + sourceBadge + '">' + o.source + '</span></td>' +
+      '<td>' + (flags || '<span style="color:var(--text-dim)">—</span>') + '</td>' +
+      '<td>' + status + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('sq-total').textContent = ORDERS.length;
+  var urgent = ORDERS.filter(o => daysTo(o.crad) <= 2).length;
+  document.getElementById('sq-urgent').textContent = urgent;
+}
+
+// ─── LOAD BUILDER ────────────────────────────────────────────────────
+function renderOrderList() {
+  var container = document.getElementById('order-list-body');
+  container.innerHTML = '';
+  var sorted = ORDERS.slice().sort((a,b) => new Date(a.crad) - new Date(b.crad));
+  sorted.forEach(function(o) {
+    var days = daysTo(o.crad);
+    var cradClass = days <= 1 ? 'crad-urgent' : days <= 3 ? 'crad-warn' : 'crad-ok';
+    var div = document.createElement('div');
+    div.className = 'order-item' + (assignedFbs[o.fb] ? ' assigned' : '');
+    div.id = 'oi-' + o.fb;
+    div.innerHTML = 
+      '<div style="display:flex;align-items:center;justify-content:space-between">' +
+        '<span class="order-fb">' + o.fb + (o.isNew ? ' <span style="font-size:9px;color:var(--accent);font-family:var(--sans)">NEW</span>' : '') + '</span>' +
+        '<span class="badge ' + (days<=1?'badge-red':days<=3?'badge-amber':'badge-green') + '" style="font-size:9px">' + (days < 0 ? 'LATE' : days+'d') + '</span>' +
+      '</div>' +
+      '<div class="order-cust">' + o.consignee + '</div>' +
+      '<div class="order-meta">' +
+        '<span>' + o.lane + '</span>' +
+        '<span>' + o.weight.toLocaleString() + ' lbs</span>' +
+        '<span>' + o.cube + ' sp</span>' +
+        '<span class="' + cradClass + '">' + o.crad.slice(5).replace('-','/') + '</span>' +
+      '</div>';
+    container.appendChild(div);
+  });
+  document.getElementById('unplanned-count').textContent = ORDERS.filter(o=>!assignedFbs[o.fb]).length + ' orders';
+  
+  // Update AI trigger stats
+  var totalWt = ORDERS.reduce((s,o) => s + o.weight, 0);
+  document.getElementById('ai-s-orders').textContent = ORDERS.length;
+  document.getElementById('ai-s-weight').textContent = Math.round(totalWt/1000) + 'k lbs';
+}
+
+// ─── AI OPTIMIZER ────────────────────────────────────────────────────
+function buildOptimalTrips() {
+  // Group by lane, then pack by weight (43500 cap) and cube (26 cap), sort CRAD first
+  var lanes = {};
+  ORDERS.forEach(function(o) {
+    if (!lanes[o.lane]) lanes[o.lane] = [];
+    lanes[o.lane].push(o);
+  });
+  
+  var trips = [];
+  var tripCounter = 1;
+  var laneNames = Object.keys(lanes).sort();
+  
+  laneNames.forEach(function(lane) {
+    var orders = lanes[lane].slice().sort((a,b) => new Date(a.crad) - new Date(b.crad));
+    var currentTrip = null;
+    
+    orders.forEach(function(o) {
+      if (!currentTrip) {
+        currentTrip = {id: 'TRP-' + String(tripCounter++).padStart(4,'0'), lane: lane, orders:[], totalWeight:0, totalCube:0, cradMin: o.crad};
+      }
+      // Check if order fits
+      if (currentTrip.totalWeight + o.weight <= 43500 && currentTrip.totalCube + o.cube <= 26) {
+        currentTrip.orders.push(o);
+        currentTrip.totalWeight += o.weight;
+        currentTrip.totalCube += o.cube;
+        if (o.crad < currentTrip.cradMin) currentTrip.cradMin = o.crad;
+      } else {
+        trips.push(currentTrip);
+        currentTrip = {id: 'TRP-' + String(tripCounter++).padStart(4,'0'), lane: lane, orders:[o], totalWeight:o.weight, totalCube:o.cube, cradMin:o.crad};
+      }
+    });
+    if (currentTrip && currentTrip.orders.length > 0) trips.push(currentTrip);
+  });
+  
+  return trips;
+}
+
+var aiSteps = [
+  'Parsing order queue by lane and CRAD priority...',
+  'Applying weight constraints (43,500 lb reefer cap)...',
+  'Optimizing cube utilization and double-stack rules...',
+  'Resolving CRAD conflicts — sorting urgent loads first...',
+  'Checking hazmat and consignee dwell constraints...',
+  'Finalizing trip groupings — minimizing empty miles...',
+  'Load plans ready. ✓'
+];
+
+function runAI() {
+  if (aiRan) return;
+  var zone = document.getElementById('ai-trigger-zone');
+  var btn = document.getElementById('ai-btn');
+  var prog = document.getElementById('ai-progress');
+  var progOuter = document.getElementById('ai-progress-outer');
+  var statusText = document.getElementById('ai-status-text');
+  
+  btn.disabled = true;
+  btn.textContent = 'Analyzing orders...';
+  zone.classList.add('running');
+  progOuter.style.display = 'block';
+  
+  var step = 0;
+  var duration = 3200;
+  var stepDur = duration / aiSteps.length;
+  
+  function doStep() {
+    if (step < aiSteps.length) {
+      statusText.textContent = aiSteps[step];
+      var pct = Math.round(((step + 1) / aiSteps.length) * 100);
+      prog.style.width = pct + '%';
+      step++;
+      setTimeout(doStep, step < aiSteps.length ? stepDur : stepDur * 1.5);
+    } else {
+      // Done — render trips
+      aiRan = true;
+      var trips = buildOptimalTrips();
+      renderTrips(trips);
+      
+      btn.textContent = '✓ Load Plans Generated';
+      btn.style.background = '#1a4a40';
+      btn.style.color = '#34d399';
+      
+      // mark orders as assigned
+      trips.forEach(t => t.orders.forEach(o => assignedFbs[o.fb] = t.id));
+      document.getElementById('unplanned-count').textContent = '0 unplanned';
+      renderOrderList();
+      
+      // vs banner
+      var avgLF = Math.round(trips.reduce((s,t) => s + (t.totalWeight / 43500 * 100), 0) / trips.length);
+      var cradOk = trips.filter(t => daysTo(t.cradMin) >= 0).length;
+      document.getElementById('vsa-time').textContent = '< 1 sec';
+      document.getElementById('vsa-lf').textContent = avgLF + '%';
+      document.getElementById('vsa-crad').textContent = cradOk + '/' + trips.length + ' trips';
+      document.getElementById('vs-banner').style.display = 'grid';
+    }
+  }
+  setTimeout(doStep, 200);
+}
+
+function renderTrips(trips) {
+  var container = document.getElementById('trip-cards');
+  container.innerHTML = '';
+  
+  trips.forEach(function(trip, idx) {
+    var lf = Math.round((trip.totalWeight / 43500) * 100);
+    var cf = Math.round((trip.totalCube / 26) * 100);
+    var lfClass = lf >= 85 ? 'lf-good' : lf >= 70 ? 'lf-warn' : 'lf-low';
+    var lfFillColor = lf >= 85 ? '#34d399' : lf >= 70 ? '#fbbf24' : '#f87171';
+    var daysOut = daysTo(trip.cradMin);
+    var cradChip = daysOut <= 1 ? 'crad-over-chip' : daysOut <= 3 ? 'crad-warn-chip' : 'crad-ok-chip';
+    var cradLabel = daysOut < 0 ? 'OVERDUE' : daysOut === 0 ? 'TODAY' : daysOut + ' days';
+    
+    var ordersHTML = trip.orders.map(o =>
+      '<div class="order-mini-row">' +
+        '<span class="order-mini-fb">' + o.fb + '</span>' +
+        '<span class="order-mini-cust">' + o.consignee + '</span>' +
+        '<span class="order-mini-wt">' + o.weight.toLocaleString() + ' lbs</span>' +
+        '<span class="crad-chip ' + (daysTo(o.crad) <= 1 ? 'crad-over-chip' : daysTo(o.crad) <= 3 ? 'crad-warn-chip' : 'crad-ok-chip') + '">' + o.crad.slice(5).replace('-','/') + '</span>' +
+      '</div>'
+    ).join('');
+    
+    var savedMin = Math.round(10 + Math.random() * 8);
+    
+    var card = document.createElement('div');
+    card.className = 'trip-card';
+    card.innerHTML =
+      '<div class="trip-header">' +
+        '<span class="trip-id">' + trip.id + '</span>' +
+        '<span class="trip-lane">' + trip.lane + '</span>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-left:12px">' +
+          '<span class="crad-chip ' + cradChip + '">CRAD ' + cradLabel + '</span>' +
+        '</div>' +
+        '<div class="trip-header-right">' +
+          '<span class="badge badge-gray" style="font-size:10px">' + trip.orders.length + ' orders</span>' +
+          '<span class="lf-badge ' + lfClass + '">' + lf + '% LF</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="trip-body">' +
+        '<div class="fill-meters">' +
+          '<div class="meter-row">' +
+            '<div class="meter-label"><span>Weight</span><span>' + trip.totalWeight.toLocaleString() + ' / 43,500 lbs</span></div>' +
+            '<div class="meter-track"><div class="meter-fill" id="wm-' + idx + '" style="width:0%;background:' + lfFillColor + '"></div></div>' +
+          '</div>' +
+          '<div class="meter-row">' +
+            '<div class="meter-label"><span>Cube (spaces)</span><span>' + trip.totalCube + ' / 26</span></div>' +
+            '<div class="meter-track"><div class="meter-fill" id="cm-' + idx + '" style="width:0%;background:var(--blue)"></div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="trip-orders-mini">' + ordersHTML + '</div>' +
+      '</div>' +
+      '<div class="trip-footer">' +
+        '<button class="btn" style="font-size:11px;padding:5px 10px">Assign Planner</button>' +
+        '<button class="btn" style="font-size:11px;padding:5px 10px">Review & Confirm</button>' +
+        '<button class="btn btn-accent" style="font-size:11px;padding:5px 10px">→ Send to Scheduling</button>' +
+        '<div class="trip-saving"><span>Est. time saved:</span><span class="saving-val">~' + savedMin + ' min</span></div>' +
+      '</div>';
+    
+    container.appendChild(card);
+    
+    // Animate in
+    setTimeout(function() {
+      card.classList.add('visible');
+      setTimeout(function() {
+        document.getElementById('wm-' + idx).style.width = Math.min(lf, 100) + '%';
+        document.getElementById('cm-' + idx).style.width = Math.min(cf, 100) + '%';
+      }, 200);
+    }, idx * 200 + 300);
+  });
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────
+renderQueue('ALL');
+renderOrderList();
+</script>
+</body>
+</html>
